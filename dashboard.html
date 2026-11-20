@@ -1,0 +1,2186 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>FastbreaK — Quantitative Portfolio Analytics</title>
+  <link rel="icon" type="image/png" href="/F.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
+  <script src="https://cdn.plot.ly/plotly-2.35.0.min.js"></script>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --surface-alt: #f1f5f9;
+      --border: #e2e8f0;
+      --border-strong: #cbd5e1;
+      --ink: #0f172a;
+      --ink-2: #334155;
+      --muted: #64748b;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --accent-soft: rgba(37, 99, 235, 0.08);
+      --green: #059669;
+      --green-soft: rgba(5, 150, 105, 0.10);
+      --warn: #dc2626;
+      --warn-soft: rgba(220, 38, 38, 0.09);
+      --orange: #d97706;
+      --orange-soft: rgba(217, 119, 6, 0.10);
+      --purple: #7c3aed;
+      --cyan: #0284c7;
+      --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.03);
+      --shadow-md: 0 4px 16px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.03);
+      --radius: 14px;
+      --radius-sm: 9px;
+      --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background:
+        radial-gradient(1200px 420px at 50% -120px, rgba(37, 99, 235, 0.065), transparent 70%),
+        var(--bg);
+      color: var(--ink);
+      font-family: var(--font-sans);
+      font-size: 13.5px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border-strong);
+      border-radius: 99px;
+    }
+
+    /* ── Animations ───────────────────────────────────────────── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+
+    @keyframes pulseDot {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.45); opacity: 0.45; }
+    }
+
+    @keyframes shimmer {
+      0%   { background-position: -600px 0; }
+      100% { background-position: 600px 0; }
+    }
+
+    .skeleton {
+      width: 100%;
+      height: 360px;
+      border-radius: 10px;
+      background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+      background-size: 1200px 100%;
+      animation: shimmer 1.5s infinite linear;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    /* ── Sticky Glass Navbar ──────────────────────────────────── */
+    .navbar {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(255, 255, 255, 0.86);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      object-fit: contain;
+      display: block;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.10);
+    }
+
+    .brand-title {
+      font-weight: 800;
+      font-size: 20px;
+      letter-spacing: -0.03em;
+      color: var(--ink);
+      line-height: 1.1;
+    }
+
+    .brand-title span {
+      color: var(--accent);
+    }
+
+    .brand-sub {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 500;
+      margin-top: 1px;
+    }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      border-radius: 99px;
+      padding: 5px 12px;
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      font-weight: 500;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+      transition: all 0.2s ease;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+
+    .status-dot.running {
+      background: var(--accent);
+      animation: pulseDot 1.3s ease infinite;
+    }
+
+    .status-dot.done {
+      background: var(--green);
+    }
+
+    .status-dot.error {
+      background: var(--warn);
+    }
+
+    /* ── Main Container ───────────────────────────────────────── */
+    .main {
+      max-width: 1460px;
+      margin: 0 auto;
+      padding: 22px 24px 56px;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px;
+      box-shadow: var(--shadow-sm);
+      transition: box-shadow 0.25s ease, border-color 0.25s ease;
+    }
+
+    .panel:hover {
+      box-shadow: var(--shadow-md);
+    }
+
+    .config-wrap {
+      transition: all 0.3s ease;
+      margin-bottom: 14px;
+    }
+
+    .config-wrap.collapsed {
+      display: none;
+    }
+
+    .config {
+      display: grid;
+      grid-template-columns: minmax(300px, 0.92fr) minmax(0, 1.25fr);
+      gap: 24px;
+      align-items: start;
+    }
+
+    .lbl {
+      font-size: 10.5px;
+      color: var(--muted);
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      font-weight: 700;
+    }
+
+    input,
+    select {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--ink);
+      border-radius: var(--radius-sm);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 8px 11px;
+      width: 100%;
+      outline: none;
+      transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    }
+
+    input:hover,
+    select:hover {
+      border-color: var(--border-strong);
+    }
+
+    input:focus,
+    select:focus {
+      background: var(--surface);
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+
+    input::placeholder {
+      color: #94a3b8;
+    }
+
+    .inp-sm {
+      padding: 7px 9px;
+      font-size: 12px;
+    }
+
+    .fields {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px 12px;
+      margin-bottom: 14px;
+    }
+
+    .ticker-header {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      padding-left: 24px;
+      margin-bottom: 6px;
+    }
+
+    .ticker-header .lbl { flex: 2; min-width: 60px; margin: 0; }
+    .ticker-header .lbl-ccy { flex: 1.15; min-width: 58px; margin: 0; }
+    .ticker-header .lbl-w { flex: 1; min-width: 50px; padding-right: 24px; margin: 0; }
+
+    .ticker-grid {
+      max-height: 310px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .ticker-row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      margin-bottom: 6px;
+      animation: fadeIn 0.2s ease;
+    }
+
+    .ticker-row .num {
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      min-width: 18px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .ticker-row input.t-ticker,
+    .ticker-row input.cmp-t { flex: 2; min-width: 60px; font-weight: 600; text-transform: uppercase; }
+    .ticker-row select.t-ccy { flex: 1.15; min-width: 58px; font-size: 11px; padding: 7px 6px; }
+    .ticker-row .w-inp { flex: 1; min-width: 50px; }
+
+    .del-btn {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      cursor: pointer;
+      font-size: 16px;
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+    }
+
+    .del-btn:hover {
+      background: var(--warn-soft);
+      color: var(--warn);
+    }
+
+    /* ── Highlighted Global Estimation Mode Box & Navbar Badge ── */
+    .est-mode-box {
+      padding: 11px 13px;
+      border-radius: 11px;
+      margin-bottom: 14px;
+      border: 1.5px solid var(--accent);
+      background: linear-gradient(135deg, rgba(37, 99, 235, 0.07) 0%, rgba(2, 132, 199, 0.04) 100%);
+      transition: all 0.2s ease;
+    }
+
+    .est-mode-box.is-insample {
+      border-color: var(--orange);
+      background: linear-gradient(135deg, rgba(217, 119, 6, 0.09) 0%, rgba(217, 119, 6, 0.03) 100%);
+    }
+
+    .est-mode-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .est-mode-box .lbl {
+      margin-bottom: 0;
+      color: var(--accent);
+    }
+
+    .est-mode-box.is-insample .lbl {
+      color: var(--orange);
+    }
+
+    .est-mode-pill {
+      font-family: var(--font-mono);
+      font-size: 9.5px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      padding: 2px 8px;
+      border-radius: 99px;
+      background: var(--accent);
+      color: #ffffff;
+    }
+
+    .est-mode-box.is-insample .est-mode-pill {
+      background: var(--orange);
+    }
+
+    .est-mode-box select {
+      background: #ffffff;
+      font-weight: 600;
+      color: var(--ink);
+      border-color: rgba(37, 99, 235, 0.35);
+    }
+
+    .est-mode-box.is-insample select {
+      border-color: rgba(217, 119, 6, 0.45);
+    }
+
+    .nav-mode-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: 99px;
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      background: var(--accent-soft);
+      color: var(--accent);
+      border: 1px solid rgba(37, 99, 235, 0.28);
+      transition: all 0.2s ease;
+    }
+
+    .nav-mode-badge.is-insample {
+      background: var(--orange-soft);
+      color: var(--orange);
+      border-color: rgba(217, 119, 6, 0.35);
+    }
+
+    /* ── Weight Mode Selector Cards ───────────────────────────── */
+    .radio-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px;
+      margin-bottom: 16px;
+    }
+
+    .radio-group label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 11px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg);
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--ink-2);
+      cursor: pointer;
+      transition: all 0.16s ease;
+    }
+
+    .radio-group label:hover {
+      border-color: var(--border-strong);
+      background: var(--surface);
+    }
+
+    .radio-group label:has(input:checked) {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .radio-group input {
+      accent-color: var(--accent);
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+      margin: 0;
+    }
+
+    /* ── Buttons ──────────────────────────────────────────────── */
+    .btn {
+      border: none;
+      border-radius: var(--radius-sm);
+      color: #fff;
+      font-family: var(--font-sans);
+      font-weight: 700;
+      font-size: 12.5px;
+      letter-spacing: 0.02em;
+      padding: 10px 18px;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      width: 100%;
+    }
+
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .btn-run {
+      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+    }
+
+    .btn-run:hover:not(:disabled) {
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+      transform: translateY(-1px);
+    }
+
+    .btn-csv {
+      background: var(--surface);
+      color: var(--ink);
+      border: 1px solid var(--border-strong);
+    }
+
+    .btn-csv:hover {
+      background: var(--surface-alt);
+      border-color: var(--ink);
+    }
+
+    .btn-ghost {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--ink-2);
+      font-family: var(--font-sans);
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 7px 13px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      width: auto;
+      transition: all 0.16s ease;
+    }
+
+    .btn-ghost:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .btn-row {
+      display: grid;
+      grid-template-columns: 1.35fr 1fr;
+      gap: 10px;
+    }
+
+    .sl-bar {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      margin-top: 6px;
+      flex-wrap: wrap;
+    }
+
+    .sl-bar input,
+    .sl-bar select {
+      flex: 1;
+      min-width: 100px;
+      font-size: 11.5px;
+      padding: 6px 9px;
+    }
+
+    .btn-sm {
+      padding: 7px 11px;
+      font-size: 11px;
+      border-radius: 7px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--ink-2);
+      font-family: var(--font-sans);
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+    }
+
+    .btn-sm:hover { border-color: var(--ink); color: var(--ink); }
+    .btn-save:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+    .btn-load:hover { border-color: var(--green); color: var(--green); background: var(--green-soft); }
+    .btn-del:hover { border-color: var(--warn); color: var(--warn); background: var(--warn-soft); }
+
+    .weight-counter {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 5px 10px;
+      border-radius: 7px;
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ── Progress & Status Bar ────────────────────────────────── */
+    .progress-track {
+      height: 3px;
+      background: var(--border);
+      border-radius: 99px;
+      margin-bottom: 10px;
+      overflow: hidden;
+      display: none;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--cyan));
+      border-radius: 99px;
+      transition: width 0.4s ease;
+      width: 0;
+    }
+
+    .status-bar {
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      color: var(--muted);
+      min-height: 20px;
+      margin-bottom: 14px;
+    }
+
+    /* ── Quant Score Card (with SVG Radial Ring) ─────────────── */
+    .qs-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 24px;
+      margin-bottom: 14px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      flex-wrap: wrap;
+      animation: fadeUp 0.35s ease both;
+    }
+
+    .qs-ring-wrap {
+      position: relative;
+      width: 86px;
+      height: 86px;
+      flex-shrink: 0;
+    }
+
+    .qs-ring-wrap svg {
+      transform: rotate(-90deg);
+      width: 86px;
+      height: 86px;
+    }
+
+    .qs-ring-bg {
+      fill: none;
+      stroke: var(--surface-alt);
+      stroke-width: 7;
+    }
+
+    .qs-ring-fg {
+      fill: none;
+      stroke-width: 7;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .qs-ring-num {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 21px;
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+    }
+
+    .qs-badge {
+      display: inline-block;
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      padding: 3px 10px;
+      border-radius: 99px;
+      text-transform: uppercase;
+      margin-left: 8px;
+    }
+
+    .qs-breakdown {
+      font-size: 11.5px;
+      color: var(--muted);
+      line-height: 1.65;
+      margin-top: 6px;
+    }
+
+    /* ── KPI Strip ────────────────────────────────────────────── */
+    .kpi-section {
+      margin-bottom: 14px;
+    }
+
+    .kpi-section-title {
+      font-size: 10.5px;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      font-weight: 700;
+    }
+
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+      gap: 10px;
+    }
+
+    .kpi {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      box-shadow: var(--shadow-sm);
+      animation: fadeUp 0.35s ease both;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+
+    .kpi:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+      border-color: var(--border-strong);
+    }
+
+    .kpi-lbl {
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .kpi-val {
+      font-family: var(--font-mono);
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--ink);
+      font-variant-numeric: tabular-nums;
+      line-height: 1.15;
+    }
+
+    .kpi-sub {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      color: var(--muted);
+      margin-top: 4px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .kpi-pos .kpi-val { color: var(--green); }
+    .kpi-neg .kpi-val { color: var(--warn); }
+
+    /* ── Top Sticky Tab Navigation Bar ────────────────────────── */
+    .top-tabs-wrap {
+      position: sticky;
+      top: 63px;
+      z-index: 45;
+      background: rgba(248, 250, 252, 0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 8px 24px;
+      display: none;
+    }
+
+    .tab-bar {
+      max-width: 1460px;
+      margin: 0 auto;
+      display: flex;
+      gap: 6px;
+      padding: 5px;
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .tab-bar::-webkit-scrollbar { display: none; }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      border-radius: 9px;
+      padding: 10px 18px;
+      color: var(--muted);
+      font-family: var(--font-sans);
+      font-size: 13.5px;
+      font-weight: 600;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.18s ease;
+    }
+
+    .tab-btn:hover {
+      color: var(--ink);
+      background: rgba(255, 255, 255, 0.72);
+    }
+
+    .tab-btn.active {
+      background: var(--surface);
+      color: var(--accent);
+      font-weight: 700;
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.09);
+    }
+
+    .tab-content {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px;
+      min-height: 400px;
+      box-shadow: var(--shadow-sm);
+      animation: fadeIn 0.25s ease;
+    }
+
+    .tab-content .placeholder {
+      text-align: center;
+      color: var(--muted);
+      padding: 72px 20px;
+      font-size: 13px;
+    }
+
+    /* ── Chart Grids & Cards ──────────────────────────────────── */
+    .chart-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .chart-3col {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .chart-4col {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .chart-full {
+      margin-bottom: 16px;
+      min-height: 440px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 8px;
+      background: var(--surface);
+    }
+
+    .chart-row > div,
+    .chart-3col > div,
+    .chart-4col > div {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 8px;
+      background: var(--surface);
+      min-height: 350px;
+    }
+
+    .mc-controls {
+      display: flex;
+      gap: 12px;
+      align-items: flex-end;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+      padding: 12px 14px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    .mc-controls select {
+      width: 145px;
+      font-size: 11.5px;
+      padding: 7px 9px;
+      background: var(--surface);
+    }
+
+    /* ── Callouts, Dividers, Diagnostics & Verdicts ───────────── */
+    .info-box {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-left: 3.5px solid var(--accent);
+      border-radius: 10px;
+      padding: 13px 16px;
+      margin-bottom: 14px;
+      font-size: 12.5px;
+      line-height: 1.65;
+      color: var(--ink-2);
+    }
+
+    .info-box b, .info-box strong { color: var(--ink); }
+
+    .info-box code {
+      color: var(--accent);
+      background: var(--accent-soft);
+      padding: 1px 6px;
+      border-radius: 5px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+
+    .section-divider {
+      margin: 26px 0 14px;
+      padding-top: 18px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--ink);
+      letter-spacing: -0.01em;
+    }
+
+    .diag-bar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    .diag-pill {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 5px 10px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .diag-pill strong { color: var(--ink); }
+
+    .verdict-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding: 14px 18px;
+      border-radius: 12px;
+      margin-bottom: 14px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+    }
+
+    .verdict-strong { border-left: 4px solid var(--green); background: rgba(5, 150, 105, 0.04); }
+    .verdict-moderate { border-left: 4px solid var(--orange); background: rgba(217, 119, 6, 0.04); }
+    .verdict-weak { border-left: 4px solid var(--warn); background: rgba(220, 38, 38, 0.04); }
+
+    /* ── Toast Notifications ──────────────────────────────────── */
+    #toast-stack {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      z-index: 999;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+
+    .toast {
+      pointer-events: auto;
+      background: var(--ink);
+      color: #fff;
+      font-size: 12.5px;
+      font-weight: 500;
+      padding: 11px 16px;
+      border-radius: 10px;
+      box-shadow: 0 10px 28px rgba(15, 23, 42, 0.18);
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      animation: fadeUp 0.25s ease;
+    }
+
+    .toast.success { border-left: 4px solid #10b981; }
+    .toast.error   { border-left: 4px solid #ef4444; }
+    .toast.info    { border-left: 4px solid #3b82f6; }
+
+    /* ── Footer ───────────────────────────────────────────────── */
+    .footer {
+      max-width: 1460px;
+      margin: 0 auto;
+      padding: 18px 24px 36px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      font-size: 11.5px;
+      color: var(--muted);
+    }
+
+    .active-alloc-grid {
+      display: grid;
+      grid-template-columns: 310px minmax(0, 1fr);
+      gap: 24px;
+      align-items: center;
+    }
+
+    .active-alloc-grid > div {
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .holdings-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 270px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .holding-row {
+      display: grid;
+      grid-template-columns: 72px minmax(120px, 1fr) 90px 56px;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 11px;
+      border-radius: 9px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      font-size: 12px;
+      transition: border-color 0.15s ease;
+    }
+
+    .holding-row:hover {
+      border-color: var(--border-strong);
+    }
+
+    .holding-ticker {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      color: var(--ink);
+      font-size: 11.5px;
+    }
+
+    .holding-name {
+      color: var(--ink-2);
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .holding-bar-track {
+      height: 6px;
+      background: var(--surface-alt);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+
+    .holding-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--cyan));
+      border-radius: 99px;
+    }
+
+    .holding-pct {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      color: var(--accent);
+      text-align: right;
+      font-size: 11.5px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ── Responsive ───────────────────────────────────────────── */
+    @media (max-width: 980px) {
+      .config, .chart-row, .chart-3col, .chart-4col, .active-alloc-grid {
+        grid-template-columns: 1fr !important;
+      }
+      .navbar { padding: 10px 16px; }
+      .main { padding: 14px 14px 40px; }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app">
+    <nav class="navbar">
+      <div class="brand">
+        <img src="/F.png" alt="FastbreaK Logo" class="brand-logo">
+        <div>
+          <div class="brand-title">Fast<span>breaK</span></div>
+          <div class="brand-sub">Quantitative Portfolio Engine · Out-of-Sample Walk-Forward · PCA · Robust Estimators</div>
+        </div>
+      </div>
+      <div class="nav-right">
+        <span class="nav-mode-badge" id="nav-mode-badge">OOS 3Y WALK-FORWARD</span>
+        <span class="status-pill" id="status-pill">
+          <span class="status-dot" id="status-dot"></span>
+          <span id="status-text">READY</span>
+        </span>
+        <button class="btn-ghost" id="btn-toggle-cfg" style="display:none" onclick="toggleConfig()">⚙ Edit Portfolio</button>
+        <button class="btn-ghost" id="btn-nav-export" style="display:none" onclick="exportCSV()">↓ Export .xlsx</button>
+      </div>
+    </nav>
+
+    <div class="top-tabs-wrap" id="top-tabs-wrap">
+      <div class="tab-bar" id="tab-bar"></div>
+    </div>
+
+    <div class="main">
+      <div class="config-wrap" id="config-wrap">
+        <div class="panel config">
+          <div>
+            <div class="lbl" style="margin-bottom:10px">Asset Universe &amp; Optional Custom Weights</div>
+            <div class="ticker-header">
+              <span class="lbl">Ticker</span>
+              <span class="lbl lbl-ccy">CCY</span>
+              <span class="lbl lbl-w">Weight %</span>
+            </div>
+            <div class="ticker-grid" id="ticker-grid"></div>
+            <div style="display:flex;gap:8px;margin-top:10px;align-items:center">
+              <button class="btn-ghost" onclick="addTicker()">+ Add Ticker</button>
+              <span class="weight-counter" id="weight-counter">Σ —</span>
+            </div>
+            <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
+              <div class="lbl" style="margin-bottom:6px">Saved Portfolio Presets</div>
+              <div class="sl-bar" style="margin-top:0">
+                <input id="save-name" placeholder="Preset name..." style="min-width:0">
+                <button class="btn-sm btn-save" onclick="savePortfolio()">Save</button>
+              </div>
+              <div class="sl-bar">
+                <select id="load-select" style="min-width:0">
+                  <option value="">— load saved preset —</option>
+                </select>
+                <button class="btn-sm btn-load" onclick="loadPortfolio()">Load</button>
+                <button class="btn-sm btn-del" onclick="deletePortfolio()">Delete</button>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="lbl" style="margin-bottom:10px">Backtest Parameters</div>
+            <div class="fields">
+              <div>
+                <div class="lbl">Start Date</div>
+                <input id="inp-start" value="1988-10-01">
+              </div>
+              <div>
+                <div class="lbl">Benchmark</div>
+                <input id="inp-bench" value="^GSPC">
+              </div>
+              <div>
+                <div class="lbl">Rebalance Months</div>
+                <input id="inp-rebal" value="1,5,9">
+              </div>
+              <div>
+                <div class="lbl">Frontier MC Samples</div>
+                <input id="inp-nport" type="number" value="8000" min="1000" max="30000" step="1000">
+              </div>
+              <div>
+                <div class="lbl">Risk-Free Rate %</div>
+                <input id="inp-rf" type="number" value="4.0" min="0" max="15" step="0.25">
+              </div>
+              <div>
+                <div class="lbl">Base Currency</div>
+                <select id="inp-currency">
+                  <option value="USD" selected>USD ($)</option>
+                  <option value="EUR">EUR (€)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="est-mode-box" id="est-mode-box">
+              <div class="est-mode-head">
+                <div class="lbl">Estimation Mode (Global)</div>
+                <span class="est-mode-pill" id="est-mode-pill">ZERO LOOK-AHEAD</span>
+              </div>
+              <select id="inp-estmode" onchange="syncEstModeBadge()">
+                <option value="oos3" selected>Out-of-Sample Walk-Forward (3Y Rolling · Zero Look-Ahead)</option>
+                <option value="oos5">Out-of-Sample Walk-Forward (5Y Rolling · Zero Look-Ahead)</option>
+                <option value="insample">In-Sample Full History (Static Reference)</option>
+              </select>
+            </div>
+
+            <div class="lbl">Weighting Scheme</div>
+            <div class="radio-group">
+              <label><input type="radio" name="wmode" value="markowitz" checked> Sample MLE (Markowitz)</label>
+              <label><input type="radio" name="wmode" value="gmv"> Global Min Variance</label>
+              <label><input type="radio" name="wmode" value="hrp"> HRP (Hierarchical Risk Parity)</label>
+              <label><input type="radio" name="wmode" value="ledoit_wolf"> Ledoit-Wolf Shrinkage</label>
+              <label><input type="radio" name="wmode" value="marchenko_pastur"> Marchenko-Pastur Denoised</label>
+              <label><input type="radio" name="wmode" value="elliptical"> Elliptical MLE (Student-t)</label>
+              <label><input type="radio" name="wmode" value="custom"> Custom Weights</label>
+            </div>
+
+            <div class="btn-row">
+              <button class="btn btn-run" id="btn-run" onclick="runBacktest()">▶ Run Backtest</button>
+              <button class="btn btn-csv" onclick="exportCSV()">↓ Export Excel (.xlsx)</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Active Allocation Donut + Full Holdings List -->
+      <div id="config-donut-wrap" style="display:none;margin-bottom:14px">
+        <div class="panel" style="padding:18px 22px">
+          <div class="lbl" style="margin-bottom:10px">
+            Active Allocation — <span id="donut-label" style="color:var(--accent)"></span>
+          </div>
+          <div class="active-alloc-grid">
+            <div id="mini-donut-active" style="height:270px"></div>
+            <div>
+              <div class="lbl" style="margin-bottom:8px">Held Assets (Full Names &amp; Target Weights)</div>
+              <div class="holdings-list" id="active-holdings-list"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="progress-track" id="progress-track">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+      <div class="status-bar" id="status-bar"></div>
+
+      <div id="results-area" style="display:none">
+        <div id="qs-container"></div>
+        <div id="kpi-container"></div>
+        <div class="tab-content" id="tab-content">
+          <div class="placeholder">Configure your assets above and click <strong>Run Backtest</strong> to begin.</div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="footer">
+      <div><strong>FastbreaK</strong> · Quantitative Portfolio Analytics Engine</div>
+      <div>Market data via Yahoo Finance · Analytical research tool, not financial advice.</div>
+    </footer>
+  </div>
+
+  <div id="toast-stack"></div>
+
+  <script>
+    // ── Session Isolation (Multi-User Hosting Safe) ───────────────
+    const SID = (crypto && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : 'fbk-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+
+    function apiFetch(url, opts = {}) {
+      const headers = { ...(opts.headers || {}), 'X-Session-ID': SID };
+      return fetch(url, { ...opts, headers });
+    }
+
+    // ── Toast Notifications ───────────────────────────────────────
+    function showToast(msg, type = 'info') {
+      const stack = document.getElementById('toast-stack');
+      const t = document.createElement('div');
+      t.className = `toast ${type}`;
+      t.textContent = msg;
+      stack.appendChild(t);
+      setTimeout(() => {
+        t.style.opacity = '0';
+        t.style.transform = 'translateY(8px)';
+        t.style.transition = 'all 0.25s ease';
+        setTimeout(() => t.remove(), 260);
+      }, 3400);
+    }
+
+    // ── App State ─────────────────────────────────────────────────
+    const S = { data: null, figures: {}, oos: {}, robustness: null, n1Universes: [], compareB: null, tab: 'overview' };
+    const TABS = [
+      { id: 'overview', label: 'Overview' },
+      { id: 'frontier', label: 'Frontier' },
+      { id: 'risk', label: 'Risk & PCA' },
+      { id: 'montecarlo', label: 'Monte Carlo & Stats' },
+      { id: 'rolling', label: 'Rolling' },
+      { id: 'tearsheet', label: 'Tearsheet' },
+      { id: 'distributions', label: 'Distributions' },
+      { id: 'correlations', label: 'Correlations' },
+      { id: 'n1tool', label: 'N+1 Screener' },
+      { id: 'compare', label: 'Compare A vs B' }
+    ];
+    const TAB_FIGS = {
+      overview: ['cumulative_multi', 'metrics_table', 'donut_opt', 'donut_gmv', 'donut_hrp', 'donut_lw', 'donut_mp', 'donut_ell', 'pnl_vs_benchmark', 'weights_drift', 'individual_pnl', 'annual_bars', 'annual_max_dd'],
+      frontier: ['efficient_frontier', 'weight_comparison'],
+      risk: ['rolling_volatility', 'drawdown', 'var_chart', 'recovery_times', 'risk_attribution', 'pca_risk_directions', 'pca_loadings', 'performance_attribution'],
+      montecarlo: ['monte_carlo'],
+      rolling: ['rolling_returns', 'rolling_sharpe'],
+      tearsheet: ['monthly_heatmap'],
+      distributions: ['return_distributions'],
+      correlations: ['correlation_matrix', 'rolling_correlation'],
+      n1tool: [],
+      compare: []
+    };
+
+    function toggleConfig() {
+      const wrap = document.getElementById('config-wrap');
+      const btn = document.getElementById('btn-toggle-cfg');
+      const collapsed = wrap.classList.toggle('collapsed');
+      btn.textContent = collapsed ? '⚙ Edit Portfolio' : '✕ Hide Config';
+    }
+
+    // ── Save/Load Presets (localStorage) ──────────────────────────
+    const SK = '__fbk_portfolios__';
+    function allSaved() { try { return JSON.parse(localStorage.getItem(SK) || '{}'); } catch (e) { return {}; } }
+    function refreshLoadSelect() {
+      const sel = document.getElementById('load-select');
+      const saved = allSaved();
+      const names = Object.keys(saved);
+      sel.innerHTML = '<option value="">— load saved preset —</option>' + names.map(n => {
+        const p = saved[n];
+        const sc = p.score != null ? ` [${p.score}]` : '';
+        const date = p.savedAt ? new Date(p.savedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '';
+        return `<option value="${n}">${n}${sc} — ${date}</option>`;
+      }).join('');
+    }
+    function savePortfolio() {
+      const name = (document.getElementById('save-name').value || '').trim();
+      if (!name) { showToast('Enter a preset name first', 'error'); return; }
+      const saved = allSaved();
+      const score = S.data ? S.data.quant_score : null;
+      const label = S.data ? S.data.meta.weight_label : null;
+      saved[name] = {
+        tickers: [...document.querySelectorAll('.t-ticker')].map(i => i.value),
+        currencies: [...document.querySelectorAll('.t-ccy')].map(s => s.value),
+        weights: [...document.querySelectorAll('.t-weight')].map(i => i.value),
+        settings: {
+          start: document.getElementById('inp-start').value,
+          bench: document.getElementById('inp-bench').value,
+          rebal: document.getElementById('inp-rebal').value,
+          nport: document.getElementById('inp-nport').value,
+          rf: document.getElementById('inp-rf').value,
+          currency: document.getElementById('inp-currency').value,
+          estmode: document.getElementById('inp-estmode').value,
+          wmode: document.querySelector('input[name=wmode]:checked').value
+        },
+        score, weight_label: label, savedAt: new Date().toISOString()
+      };
+      localStorage.setItem(SK, JSON.stringify(saved));
+      refreshLoadSelect();
+      document.getElementById('load-select').value = name;
+      showToast(`Preset "${name}" saved`, 'success');
+    }
+    function loadPortfolio() {
+      const name = document.getElementById('load-select').value;
+      if (!name) { showToast('Select a saved preset first', 'error'); return; }
+      const p = allSaved()[name];
+      if (!p) { showToast('Preset not found', 'error'); return; }
+      document.getElementById('ticker-grid').innerHTML = '';
+      p.tickers.forEach((t, i) => addTicker(t, p.currencies[i] || 'USD', p.weights[i] || ''));
+      const s = p.settings || {};
+      if (s.start) document.getElementById('inp-start').value = s.start;
+      if (s.bench) document.getElementById('inp-bench').value = s.bench;
+      if (s.rebal) document.getElementById('inp-rebal').value = s.rebal;
+      if (s.nport) document.getElementById('inp-nport').value = s.nport;
+      if (s.rf) document.getElementById('inp-rf').value = s.rf;
+      if (s.currency) document.getElementById('inp-currency').value = s.currency;
+      if (s.estmode) document.getElementById('inp-estmode').value = s.estmode;
+      syncEstModeBadge();
+      if (s.wmode) document.querySelectorAll('input[name=wmode]').forEach(r => { r.checked = (r.value === s.wmode); });
+      updateWC();
+      showToast(`Loaded "${name}" — click Run Backtest`, 'info');
+    }
+    function deletePortfolio() {
+      const name = document.getElementById('load-select').value;
+      if (!name) { showToast('Select a preset to delete', 'error'); return; }
+      if (!confirm(`Delete preset "${name}"?`)) return;
+      const saved = allSaved(); delete saved[name];
+      localStorage.setItem(SK, JSON.stringify(saved)); refreshLoadSelect();
+      showToast(`Deleted "${name}"`, 'info');
+    }
+
+    async function init() {
+      try {
+        const r = await apiFetch('/api/defaults');
+        const d = await r.json();
+        S.n1Universes = d.n1_universes || [];
+        d.tickers.forEach((t, i) => addTicker(t, d.currencies[i] || 'USD', ''));
+      } catch (e) {
+        showToast('Could not load defaults from server', 'error');
+      }
+      buildTabs(); refreshLoadSelect();
+    }
+
+    function addTicker(ticker = '', ccy = 'USD', weight = '') {
+      const g = document.getElementById('ticker-grid');
+      if (g.children.length >= 20) return;
+      const idx = g.children.length;
+      const row = document.createElement('div');
+      row.className = 'ticker-row';
+      row.innerHTML = `<span class="num">${idx + 1}</span>
+        <input class="inp-sm t-ticker" value="${ticker}" placeholder="TICKER">
+        <select class="t-ccy"><option value="USD" ${ccy === 'USD' ? 'selected' : ''}>USD</option>
+        <option value="EUR" ${ccy === 'EUR' ? 'selected' : ''}>EUR</option></select>
+        <input class="inp-sm w-inp t-weight" type="number" placeholder="auto" min="0" max="100" step="0.5" value="${weight}">
+        <button class="del-btn" onclick="delTicker(this)" title="Remove">×</button>`;
+      g.appendChild(row); updateWC();
+    }
+    function delTicker(b) {
+      const g = document.getElementById('ticker-grid');
+      if (g.children.length <= 1) return;
+      b.closest('.ticker-row').remove();
+      [...g.children].forEach((r, i) => r.querySelector('.num').textContent = i + 1);
+      updateWC();
+    }
+    function updateWC() {
+      const ws = [...document.querySelectorAll('.t-weight')].map(i => parseFloat(i.value) || 0);
+      const sum = ws.reduce((a, b) => a + b, 0);
+      const el = document.getElementById('weight-counter');
+      if (sum === 0) { el.textContent = 'Σ auto'; el.style.color = 'var(--muted)'; el.style.borderColor = 'var(--border)'; }
+      else if (Math.abs(sum - 100) < 0.5) { el.textContent = `Σ ${sum.toFixed(1)}% ✓`; el.style.color = 'var(--green)'; el.style.borderColor = 'var(--green)'; }
+      else { el.textContent = `Σ ${sum.toFixed(1)}%`; el.style.color = 'var(--warn)'; el.style.borderColor = 'var(--warn)'; }
+    }
+    document.addEventListener('input', e => { if (e.target.classList.contains('t-weight')) updateWC(); });
+
+    function buildTabs() {
+      const bar = document.getElementById('tab-bar'); bar.innerHTML = '';
+      TABS.forEach(t => {
+        const b = document.createElement('button');
+        b.className = 'tab-btn' + (t.id === S.tab ? ' active' : '');
+        b.textContent = t.label;
+        b.onclick = () => switchTab(t.id);
+        bar.appendChild(b);
+      });
+    }
+    function switchTab(id) {
+      S.tab = id;
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      [...document.querySelectorAll('.tab-btn')].find(b => b.textContent === TABS.find(t => t.id === id).label)?.classList.add('active');
+      renderTab(id);
+      const tc = document.getElementById('tab-content');
+      if (tc && S.data) {
+        const y = tc.getBoundingClientRect().top + window.scrollY - 135;
+        if (window.scrollY > y + 80 || y < 0) {
+          window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+        }
+      }
+    }
+
+    // ── Run Backtest ──────────────────────────────────────────────
+    async function runBacktest() {
+      const btn = document.getElementById('btn-run'); btn.disabled = true;
+      setStatus('running', 'RUNNING'); showProgress(true);
+      document.getElementById('status-bar').textContent = 'Downloading market data & running optimisation...';
+      const tickers = [...document.querySelectorAll('.t-ticker')].map(i => i.value);
+      const currencies = [...document.querySelectorAll('.t-ccy')].map(s => s.value);
+      const weights = [...document.querySelectorAll('.t-weight')].map(i => parseFloat(i.value) || null);
+      try {
+        const r = await apiFetch('/api/backtest', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tickers, currencies, weights,
+            weight_mode: document.querySelector('input[name=wmode]:checked').value,
+            estimation_mode: document.getElementById('inp-estmode').value,
+            start_date: document.getElementById('inp-start').value,
+            benchmark: document.getElementById('inp-bench').value,
+            rebal_months: document.getElementById('inp-rebal').value,
+            n_port: document.getElementById('inp-nport').value,
+            rf: document.getElementById('inp-rf').value,
+            base_currency: document.getElementById('inp-currency').value
+          })
+        });
+        const data = await r.json();
+        if (data.status !== 'ok') throw new Error(data.message || 'Backtest failed');
+        S.data = data; S.figures = {}; S.oos = {}; S.robustness = null;
+        showProgress(false);
+        document.getElementById('results-area').style.display = 'block';
+        document.getElementById('top-tabs-wrap').style.display = 'block';
+        document.getElementById('btn-toggle-cfg').style.display = 'inline-flex';
+        document.getElementById('btn-nav-export').style.display = 'inline-flex';
+        renderQuantScore(data); renderKPIs(data); renderConfigDonuts(); renderTab(S.tab);
+        setStatus('done', new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+        document.getElementById('status-bar').innerHTML =
+          `✓ ${data.meta.est_mode_label} · ${data.meta.eval_start} → ${data.meta.eval_end} (${data.meta.n_days.toLocaleString()}d) · <strong>${data.meta.weight_label}</strong> · RF ${(data.meta.rf * 100).toFixed(1)}%`;
+        showToast(`Backtest completed · Quant Score ${data.quant_score}`, 'success');
+      } catch (e) {
+        setStatus('error', 'ERROR');
+        document.getElementById('status-bar').innerHTML = `<span style="color:var(--warn)">✗ ${e.message}</span>`;
+        showToast(e.message, 'error');
+        showProgress(false);
+      } finally { btn.disabled = false; }
+    }
+
+    // ── Active Allocation Mini Donut ──────────────────────────────
+    async function renderConfigDonuts() {
+      const wmode = document.querySelector('input[name=wmode]:checked')?.value || 'markowitz';
+      const donutMap = {
+        markowitz:        ['donut_opt',    'Sample MLE (Markowitz)'],
+        gmv:              ['donut_gmv',    'Global Min Variance (GMV)'],
+        hrp:              ['donut_hrp',    'HRP (Hierarchical Risk Parity)'],
+        ledoit_wolf:      ['donut_lw',     'Ledoit-Wolf Shrinkage'],
+        marchenko_pastur: ['donut_mp',     'Marchenko-Pastur Denoised'],
+        elliptical:       ['donut_ell',    'Elliptical MLE (Student-t)'],
+        custom:           ['donut_custom', 'Custom Weights']
+      };
+      let [figName, figTitle] = donutMap[wmode] || donutMap.markowitz;
+      if (wmode === 'custom' && !(S.data && S.data.has_custom)) {
+        [figName, figTitle] = donutMap.markowitz;
+      }
+      try {
+        if (!S.figures[figName]) {
+          const r = await apiFetch('/api/figure/' + figName);
+          if (!r.ok) return;
+          S.figures[figName] = await r.json();
+        }
+        const fig = S.figures[figName];
+        const el = document.getElementById('mini-donut-active');
+        if (!el) return;
+        // Make container visible BEFORE Plotly measures its width!
+        document.getElementById('config-donut-wrap').style.display = 'block';
+        const layout = {
+          ...fig.layout, paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
+          width: 300, height: 260,
+          margin: { t: 8, b: 8, l: 8, r: 8 }, showlegend: false,
+          title: null, font: { family: 'JetBrains Mono,monospace', color: '#0f172a', size: 10 }
+        };
+        Plotly.newPlot(el, fig.data, layout, { responsive: true, displayModeBar: false });
+        const winTag = (S.data?.meta?.is_oos && wmode !== 'custom')
+          ? ` · Latest ${S.data.meta.win_y}Y Window (${S.data.meta.weights_window_range})`
+          : '';
+        document.getElementById('donut-label').textContent = figTitle + winTag;
+
+        // Populate full asset names & weights list on the right
+        const listEl = document.getElementById('active-holdings-list');
+        if (listEl && S.data) {
+          const tks = S.data.meta.tickers || [];
+          const names = S.data.meta.ticker_names || {};
+          const bw = S.data.weights.backtest || [];
+          const items = tks.map((t, i) => ({
+            ticker: t,
+            name: names[t] || t,
+            w: (bw[i] || 0) * 100
+          })).filter(x => x.w > 0.05).sort((a, b) => b.w - a.w);
+          const maxW = items.length ? items[0].w : 100;
+          listEl.innerHTML = items.map(it => `
+            <div class="holding-row" title="${it.name}">
+              <span class="holding-ticker">${it.ticker}</span>
+              <span class="holding-name">${it.name}</span>
+              <div class="holding-bar-track"><div class="holding-bar-fill" style="width:${(it.w / maxW * 100).toFixed(1)}%"></div></div>
+              <span class="holding-pct">${it.w.toFixed(1)}%</span>
+            </div>
+          `).join('') || '<div style="color:var(--muted);font-size:12px">No active holdings</div>';
+        }
+      } catch (e) { }
+    }
+
+    // ── Animated Quant Score Card (Radial SVG Ring + Count-Up) ────
+    function renderQuantScore(data) {
+      const qs = data.quant_score || 0;
+      let color, bgSoft, rating;
+      if (qs >= 80)      { color = '#059669'; bgSoft = 'rgba(5,150,105,0.10)'; rating = 'EXCEPTIONAL'; }
+      else if (qs >= 60) { color = '#2563eb'; bgSoft = 'rgba(37,99,235,0.10)'; rating = 'STRONG'; }
+      else if (qs >= 40) { color = '#d97706'; bgSoft = 'rgba(217,119,6,0.10)'; rating = 'AVERAGE'; }
+      else if (qs >= 20) { color = '#dc2626'; bgSoft = 'rgba(220,38,38,0.10)'; rating = 'BELOW AVG'; }
+      else               { color = '#dc2626'; bgSoft = 'rgba(220,38,38,0.10)'; rating = 'WEAK'; }
+
+      const r = 36, circ = 2 * Math.PI * r;
+      const targetOffset = circ * (1 - Math.min(Math.max(qs, 0), 100) / 100);
+
+      document.getElementById('qs-container').innerHTML = `
+        <div class="qs-card">
+          <div class="qs-ring-wrap">
+            <svg viewBox="0 0 86 86">
+              <circle class="qs-ring-bg" cx="43" cy="43" r="${r}"></circle>
+              <circle class="qs-ring-fg" id="qs-ring-fg" cx="43" cy="43" r="${r}"
+                stroke="${color}" stroke-dasharray="${circ}" stroke-dashoffset="${circ}"></circle>
+            </svg>
+            <div class="qs-ring-num" style="color:${color}">
+              <span id="qs-count">0.0</span>
+              <span style="font-size:9px;color:var(--muted);font-weight:600;margin-top:2px">/ 100</span>
+            </div>
+          </div>
+          <div style="flex:1;min-width:240px">
+            <div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px">
+              <span style="font-weight:800;font-size:15px;color:var(--ink)">Quant Quality Score</span>
+              <span class="qs-badge" style="color:${color};background:${bgSoft}">${rating}</span>
+              <span style="margin-left:auto;font-family:var(--font-mono);font-size:11px;color:var(--muted)">${data.meta.weight_label}</span>
+            </div>
+            <div class="qs-breakdown">
+              IR (20) · Real Return (15) · Risk Efficiency (10) · Vol Efficiency (5) · CVaR 95% (10) · Avg Recovery (20) · Max Recovery (10) · Annual Win Rate (10)<br>
+              <span style="color:var(--cyan);font-size:11px">✓ Risk-free rate independent composite score · Evaluated on ${data.meta.eval_start} → ${data.meta.eval_end}</span>
+            </div>
+          </div>
+        </div>`;
+
+      requestAnimationFrame(() => {
+        const ring = document.getElementById('qs-ring-fg');
+        if (ring) ring.style.strokeDashoffset = targetOffset;
+        const numEl = document.getElementById('qs-count');
+        const start = performance.now(), dur = 750;
+        function tick(now) {
+          const p = Math.min((now - start) / dur, 1);
+          const eased = 1 - Math.pow(1 - p, 3);
+          if (numEl) numEl.textContent = (qs * eased).toFixed(1);
+          if (p < 1) requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+      });
+    }
+
+    // ── KPIs ──────────────────────────────────────────────────────
+    function renderKPIs(data) {
+      const m = data.kpis.portfolio, b = data.kpis.benchmark, rc = data.recent;
+      const fmt = (v, pct = true) => v == null ? '—' : pct ? (v * 100).toFixed(2) + '%' : v.toFixed(2);
+      const cls = v => v >= 0 ? 'kpi-pos' : 'kpi-neg';
+      let delayIdx = 0;
+      const kpi = (l, v, c, s) => {
+        const d = (delayIdx++ * 28);
+        return `<div class="kpi ${c}" style="animation-delay:${d}ms"><div class="kpi-lbl">${l}</div><div class="kpi-val">${v}</div><div class="kpi-sub">${s}</div></div>`;
+      };
+      document.getElementById('kpi-container').innerHTML = `
+        <div class="kpi-section">
+          <div class="kpi-section-title">Portfolio Analytics — Active Strategy vs Benchmark</div>
+          <div class="kpi-row">
+            ${kpi('Ann. Return', fmt(m.ann_ret), cls(m.ann_ret), 'Bench: ' + fmt(b.ann_ret))}
+            ${kpi('Volatility', fmt(m.ann_vol), '', 'Bench: ' + fmt(b.ann_vol))}
+            ${kpi('Sharpe', fmt(m.sharpe, false), cls(m.sharpe), 'Bench: ' + fmt(b.sharpe, false))}
+            ${kpi('Sortino', fmt(m.sortino, false), cls(m.sortino), 'Bench: ' + fmt(b.sortino, false))}
+            ${kpi('Max DD', fmt(m.max_dd), 'kpi-neg', 'Bench: ' + fmt(b.max_dd))}
+            ${kpi('Calmar', fmt(m.calmar, false), cls(m.calmar), 'Bench: ' + fmt(b.calmar, false))}
+            ${kpi('Jensen α', fmt(m.alpha), cls(m.alpha), 'Bench: ' + fmt(b.alpha))}
+            ${kpi('Beta', fmt(m.beta, false), m.beta != null && m.beta < 1 ? 'kpi-pos' : 'kpi-neg', 'Bench β: 1.00')}
+          </div>
+        </div>
+        <div class="kpi-section">
+          <div class="kpi-section-title">Recent Performance — Portfolio vs Benchmark</div>
+          <div class="kpi-row">
+            ${kpi('Today', fmt(rc.today), cls(rc.today), 'Bench: ' + fmt(rc.b_today))}
+            ${kpi('7 Days', fmt(rc.week), cls(rc.week), 'Bench: ' + fmt(rc.b_week))}
+            ${kpi('MTD', fmt(rc.mtd), cls(rc.mtd), 'Bench: ' + fmt(rc.b_mtd))}
+            ${kpi('Last Month', fmt(rc.last_month), cls(rc.last_month), 'Bench: ' + fmt(rc.b_last_month))}
+            ${kpi('Last 3M', fmt(rc.last_3m), cls(rc.last_3m), 'Bench: ' + fmt(rc.b_last_3m))}
+            ${kpi('Last 1Y', fmt(rc.last_year), cls(rc.last_year), 'Bench: ' + fmt(rc.b_last_year))}
+            ${kpi('YTD', fmt(rc.ytd), cls(rc.ytd), 'Bench: ' + fmt(rc.b_ytd))}
+          </div>
+        </div>`;
+    }
+
+    // ── Tab Rendering ─────────────────────────────────────────────
+    async function renderTab(id) {
+      const ct = document.getElementById('tab-content');
+      if (!S.data) { ct.innerHTML = '<div class="placeholder">Configure your assets above and click <strong>Run Backtest</strong>.</div>'; return; }
+      if (id === 'n1tool') { renderN1Tool(ct); return; }
+      if (id === 'compare') { renderCompareTab(ct); return; }
+      if (id === 'montecarlo') { await renderMonteCarloTab(ct); return; }
+      const figs = TAB_FIGS[id] || [];
+      if (!figs.length) { ct.innerHTML = '<div class="placeholder">No charts</div>'; return; }
+      let html = '';
+      if (id === 'overview') {
+        const meta = S.data.meta;
+        const modeBanner = meta.is_oos
+          ? `<div class="info-box" style="border-left-color:var(--green)">
+               <strong>✓ Global Mode: ${meta.est_mode_label}</strong> · Evaluated OOS Period: <code>${meta.eval_start} → ${meta.eval_end}</code> (${meta.n_days.toLocaleString()} trading days).
+               Every metric, KPI, chart, and statistical test reflects the <strong>true Out-of-Sample Walk-Forward series (zero look-ahead)</strong>.
+               The allocation donuts below display the <strong>latest ${meta.win_y}Y rolling window weights</strong> (<code>${meta.weights_window_range}</code>), actionable today.
+             </div>`
+          : `<div class="info-box" style="border-left-color:var(--orange)">
+               <strong>⚠ Global Mode: ${meta.est_mode_label}</strong> · Period: <code>${meta.eval_start} → ${meta.eval_end}</code>.
+               Estimators are fit and evaluated on the same full history (includes <em>look-ahead bias</em>). Switch to <strong>Out-of-Sample Walk-Forward</strong> in Config for unbiased comparison.
+             </div>`;
+        const donutsTitle = meta.is_oos
+          ? `Latest ${meta.win_y}Y Rolling Window Weights (${meta.weights_window_range}) — Actionable Today`
+          : `Full-History Static Weights (${meta.weights_window_range})`;
+        html = `${modeBanner}
+          <div class="chart-full" id="fig-cumulative_multi"></div>
+          <div class="chart-full" id="fig-metrics_table" style="min-height:420px"></div>
+          <div class="section-divider" style="margin-top:8px"><span class="section-title">${donutsTitle}</span></div>
+          <div class="chart-3col">
+            <div id="fig-donut_opt"></div>
+            <div id="fig-donut_gmv"></div>
+            <div id="fig-donut_hrp"></div>
+          </div>
+          <div class="chart-3col">
+            <div id="fig-donut_lw"></div>
+            <div id="fig-donut_mp"></div>
+            <div id="fig-donut_ell"></div>
+          </div>
+          <div class="chart-full" id="fig-pnl_vs_benchmark"></div>
+          <div class="chart-full" id="fig-weights_drift"></div>
+          <div class="chart-full" id="fig-individual_pnl"></div>
+          <div class="chart-full" id="fig-annual_bars"></div>
+          <div class="chart-full" id="fig-annual_max_dd"></div>`;
+      } else if (id === 'frontier') {
+        html = `<div class="chart-full" id="fig-efficient_frontier"></div>
+          <div class="chart-full" id="fig-weight_comparison"></div>`;
+      } else if (id === 'risk') {
+        html = `<div class="chart-full" id="fig-rolling_volatility"></div>
+          <div class="chart-full" id="fig-drawdown"></div>
+          <div class="chart-full" id="fig-var_chart"></div>
+          <div class="chart-full" id="fig-recovery_times"></div>
+          <div class="section-divider"><span class="section-title">Euler Risk Attribution (MCR · TCR · PCR)</span></div>
+          <div class="chart-full" id="fig-risk_attribution"></div>
+          <div class="section-divider"><span class="section-title">Principal Component Analysis — Portfolio Risk Directions</span></div>
+          <div class="info-box">
+            <strong>PCA Risk Directions:</strong> decomposes asset variance into orthogonal factors (<code>PC1..PCN</code>).
+            On the left, the <strong>Marchenko-Pastur threshold (λ+)</strong> separates structural <em>signal</em> PCs from statistical <em>noise</em>.
+            On the right, portfolio variance exposure per PC and the <strong>Effective Number of Bets (ENB)</strong> quantify how many independent risk factors actually drive the portfolio.
+          </div>
+          <div class="chart-full" id="fig-pca_risk_directions"></div>
+          <div class="chart-full" id="fig-pca_loadings"></div>
+          <div class="chart-full" id="fig-performance_attribution"></div>
+          <div class="section-divider"><span class="section-title">Static Regime Stress-Test (Frozen Weights IS → OOS)</span></div>
+          <div class="info-box">
+            <strong>Static Stress-Test (frozen weights):</strong> splits the full history into two clean blocks:
+            <strong>In-Sample</strong> (single estimation of <code>μ̂, Σ̂</code> and weights) and <strong>Out-of-Sample</strong> (frozen weights held without re-estimation).
+            Tests regime resilience vs dynamic Walk-Forward. Switch to <strong>Min Variance (GMV)</strong> to isolate pure covariance matrix quality.
+          </div>
+          <div class="mc-controls">
+            <div><div class="lbl">IS / OOS Split</div>
+              <select id="oos-split"><option value="0.50">50% IS / 50% OOS</option><option value="0.60">60% IS / 40% OOS</option><option value="0.70" selected>70% IS / 30% OOS</option><option value="0.80">80% IS / 20% OOS</option></select></div>
+            <div><div class="lbl">Optimization Objective</div>
+              <select id="oos-obj" style="width:185px"><option value="max_sharpe" selected>Max Sharpe (Tangency)</option><option value="gmv">Min Variance (GMV)</option></select></div>
+            <div><div class="lbl">Elliptical ν (df)</div>
+              <select id="oos-nu" style="width:130px"><option value="3">ν = 3 (heavy)</option><option value="5" selected>ν = 5 (default)</option><option value="10">ν = 10</option><option value="30">ν = 30 (near-norm)</option><option value="auto">Auto (kurtosis)</option></select></div>
+            <button class="btn-ghost" onclick="loadOOS(true)">Run Stress-Test</button>
+          </div>
+          <div id="oos-diag" class="diag-bar"></div>
+          <div class="chart-full" id="fig-oos_equity"></div>
+          <div class="chart-full" id="fig-oos_table" style="min-height:270px"></div>
+          <div class="chart-full" id="fig-oos_weights" style="min-height:380px"></div>`;
+      } else if (id === 'correlations') {
+        html = `<div class="chart-full" id="fig-correlation_matrix"></div>
+          <div class="chart-full" id="fig-rolling_correlation"></div>`;
+      } else {
+        html = figs.map(f => `<div class="chart-full" id="fig-${f}"></div>`).join('');
+      }
+      ct.innerHTML = html;
+      for (const f of figs) { await loadFig(f); }
+      if (id === 'risk') { await loadOOS(false); }
+    }
+
+    function plotInto(elId, fig) {
+      const el = document.getElementById(elId);
+      if (!el || !fig) return;
+      el.innerHTML = '';
+      Plotly.newPlot(el, fig.data, {
+        ...fig.layout,
+        paper_bgcolor: '#ffffff',
+        plot_bgcolor: '#ffffff',
+        font: { family: 'JetBrains Mono, monospace', color: '#0f172a', size: 11 },
+        title_font: { family: 'Plus Jakarta Sans, sans-serif', size: 14, color: '#0f172a' }
+      }, { responsive: true, displayModeBar: true, scrollZoom: true });
+    }
+
+    async function loadFig(f, params = '') {
+      const el = document.getElementById('fig-' + f); if (!el) return;
+      el.innerHTML = '<div class="skeleton" style="height:' + (f.startsWith('donut_') ? '320px' : '400px') + '">Rendering chart...</div>';
+      try {
+        const cacheKey = f + params;
+        if (!S.figures[cacheKey]) {
+          const r = await apiFetch('/api/figure/' + f + params);
+          if (!r.ok) {
+            let msg = `HTTP ${r.status}`;
+            try { const err = await r.json(); if (err.error) msg = err.error; } catch (_) { }
+            el.innerHTML = `<div style="color:var(--warn);padding:18px;font-size:12px">✗ ${f}: ${msg}</div>`;
+            return;
+          }
+          S.figures[cacheKey] = await r.json();
+        }
+        plotInto('fig-' + f, S.figures[cacheKey]);
+      } catch (e) {
+        el.innerHTML = `<div style="color:var(--warn);padding:18px;font-size:12px">✗ ${e.message}</div>`;
+      }
+    }
+
+    async function loadOOS(force = false) {
+      const split = document.getElementById('oos-split')?.value || '0.70';
+      const obj   = document.getElementById('oos-obj')?.value || 'max_sharpe';
+      const nu    = document.getElementById('oos-nu')?.value || '5';
+      const key   = `${split}_${obj}_${nu}`;
+      const eqEl  = document.getElementById('fig-oos_equity');
+      const diagEl = document.getElementById('oos-diag');
+      if (!eqEl) return;
+      eqEl.innerHTML = '<div class="skeleton">Running static IS → OOS estimator stress-test...</div>';
+      try {
+        if (force || !S.oos[key]) {
+          const r = await apiFetch(`/api/oos_validation?split=${split}&objective=${obj}&nu=${nu}`);
+          const d = await r.json();
+          if (!r.ok || d.error) throw new Error(d.error || `HTTP ${r.status}`);
+          S.oos[key] = d;
+        }
+        const res = S.oos[key];
+        const dg = res.diagnostics;
+        if (diagEl && dg) {
+          diagEl.innerHTML = `
+            <div class="diag-pill">IS: <strong>${dg.is_range}</strong> (${dg.is_days}d)</div>
+            <div class="diag-pill">OOS: <strong>${dg.oos_range}</strong> (${dg.oos_days}d)</div>
+            <div class="diag-pill">Best OOS Sharpe: <strong style="color:var(--green)">${dg.best_oos}</strong></div>
+            <div class="diag-pill">LW δ̂: <strong>${dg.lw_shrinkage}</strong></div>
+            <div class="diag-pill">MP Signal/Noise: <strong>${dg.mp_signal}/${dg.mp_noise}</strong> (λ+=${dg.mp_lambda_plus})</div>
+            <div class="diag-pill">Elliptical ν=${dg.ell_nu}: <strong>${dg.ell_pct_down}%</strong> days downweighted</div>
+            <div class="diag-pill">κ(Σ): MLE <strong>${dg.mle_cond}</strong> · LW <strong>${dg.lw_cond}</strong> · MP <strong>${dg.mp_cond}</strong> · Ell <strong>${dg.ell_cond}</strong></div>
+          `;
+        }
+        plotInto('fig-oos_equity', res.fig_equity);
+        plotInto('fig-oos_table', res.fig_table);
+        plotInto('fig-oos_weights', res.fig_weights);
+      } catch (e) {
+        eqEl.innerHTML = `<div style="color:var(--warn);padding:18px;font-size:12px">✗ Stress-test error: ${e.message}</div>`;
+      }
+    }
+
+    // ── Monte Carlo & Statistical Robustness Tab ──────────────────
+    async function renderMonteCarloTab(ct) {
+      ct.innerHTML = `
+        <div class="section-divider" style="margin-top:0;padding-top:0;border-top:none">
+          <span class="section-title">Forward Monte Carlo Simulation</span>
+        </div>
+        <div class="info-box">
+          <strong>Simulation Methodology:</strong> projects <code>N</code> correlated forward trajectories of the active portfolio.<br>
+          • <strong>Parametric Gaussian (Cholesky)</strong>: estimates daily <code>μ̂, σ̂</code> and correlation <code>R</code>, applies <code>L Lᵀ = R</code> to simulate correlated shocks. <em>Caveat: assumes stationary i.i.d. normal returns.</em><br>
+          • <strong>Circular Block Bootstrap (21d)</strong>: resamples contiguous 1-month blocks of historical returns — preserves fat tails, skewness, crisis correlations &amp; volatility clustering.<br>
+          • <strong>Multivariate Student-t (ν=5)</strong>: heavy-tailed simulation fitted with the <strong>Elliptical MLE</strong> scatter matrix.
+        </div>
+        <div class="mc-controls">
+          <div><div class="lbl">Horizon (Years)</div>
+            <select id="mc-horizon"><option value="2">2Y</option><option value="4" selected>4Y</option><option value="6">6Y</option><option value="10">10Y</option></select></div>
+          <div><div class="lbl">Paths</div>
+            <select id="mc-paths"><option value="500">500</option><option value="1000" selected>1000</option><option value="3000">3000</option><option value="5000">5000</option></select></div>
+          <div><div class="lbl">Simulation Engine</div>
+            <select id="mc-engine" style="width:230px">
+              <option value="gaussian" selected>Parametric Gaussian (Cholesky)</option>
+              <option value="bootstrap">Circular Block Bootstrap (21d)</option>
+              <option value="student_t">Multivariate Student-t (ν=5)</option>
+            </select></div>
+          <button class="btn-ghost" onclick="reloadMC()">Regenerate Simulation</button>
+        </div>
+        <div class="chart-full" id="fig-monte_carlo"></div>
+
+        <div class="section-divider">
+          <span class="section-title">Statistical Robustness &amp; Randomness Validation</span>
+        </div>
+        <div class="info-box">
+          <strong>Are the realized backtest returns statistically distinguishable from chance?</strong><br>
+          Validates the active return series using <strong>Newey-West HAC t-tests</strong> (excess return &amp; CAPM Jensen's Alpha),
+          <strong>Probabilistic Sharpe Ratio (PSR)</strong> &amp; <strong>Deflated Sharpe Ratio (DSR)</strong> (skewness, kurtosis &amp; multiple-testing adjusted),
+          <strong>Circular Block Bootstrap</strong> (2,000 resamples for 95% CIs) and a <strong>Random Long-Only Portfolio Null Test</strong> (2,000 random allocations on the same assets).
+        </div>
+        <div id="rob-verdict"></div>
+        <div id="rob-kpis" class="kpi-row" style="margin-bottom:16px"></div>
+        <div class="chart-full" id="fig-rob_bootstrap" style="min-height:430px"></div>
+        <div class="chart-full" id="fig-rob_null" style="min-height:430px"></div>`;
+      await loadFig('monte_carlo', '?horizon=4&paths=1000&engine=gaussian');
+      await loadRobustness();
+    }
+
+    async function loadRobustness() {
+      const vEl = document.getElementById('rob-verdict');
+      const kEl = document.getElementById('rob-kpis');
+      const bEl = document.getElementById('fig-rob_bootstrap');
+      if (!vEl) return;
+      bEl.innerHTML = '<div class="skeleton">Running HAC t-tests, PSR/DSR &amp; 2,000 block-bootstrap resamples...</div>';
+      try {
+        if (!S.robustness) {
+          const r = await apiFetch('/api/robustness');
+          const d = await r.json();
+          if (!r.ok || d.error) throw new Error(d.error || `HTTP ${r.status}`);
+          S.robustness = d;
+        }
+        const res = S.robustness, sm = res.summary;
+        const vCls = sm.verdict_level === 'strong' ? 'verdict-strong' : sm.verdict_level === 'moderate' ? 'verdict-moderate' : 'verdict-weak';
+        const vCol = sm.verdict_level === 'strong' ? 'var(--green)' : sm.verdict_level === 'moderate' ? 'var(--orange)' : 'var(--warn)';
+        vEl.innerHTML = `
+          <div class="verdict-banner ${vCls}">
+            <div>
+              <div class="lbl" style="margin-bottom:2px">Statistical Verdict (${sm.years}Y · ${sm.n_days.toLocaleString()} trading days)</div>
+              <div style="font-weight:800;font-size:15px;color:${vCol}">${sm.verdict}</div>
+            </div>
+            <div style="font-family:var(--font-mono);font-size:11.5px;color:var(--muted)">
+              Skew: <strong style="color:var(--ink)">${sm.skew}</strong> ·
+              Ex.Kurt: <strong style="color:var(--ink)">${sm.excess_kurt}</strong> ·
+              MinTRL (95%): <strong style="color:var(--accent)">${sm.mintrl_years != null ? sm.mintrl_years + 'Y' : '∞'}</strong>
+              (have ${sm.years}Y)
+            </div>
+          </div>`;
+        const kpi = (l, v, c, s) => `<div class="kpi ${c}"><div class="kpi-lbl">${l}</div><div class="kpi-val" style="font-size:17px">${v}</div><div class="kpi-sub">${s}</div></div>`;
+        kEl.innerHTML = `
+          ${kpi('HAC t-Stat (Ex.Ret)', sm.t_hac.toFixed(2), sm.p_hac < 0.05 ? 'kpi-pos' : 'kpi-neg', `p = ${sm.p_hac.toFixed(4)} (std t=${sm.t_std})`)}
+          ${kpi('Alpha HAC t-Stat', sm.t_alpha.toFixed(2), sm.p_alpha < 0.05 ? 'kpi-pos' : '', `α = ${(sm.alpha_ann * 100).toFixed(2)}% · p=${sm.p_alpha.toFixed(4)}`)}
+          ${kpi('PSR (SR > 0)', (sm.psr_zero * 100).toFixed(1) + '%', sm.psr_zero >= 0.95 ? 'kpi-pos' : 'kpi-neg', `vs Bench: ${(sm.psr_bench * 100).toFixed(1)}%`)}
+          ${kpi('Deflated Sharpe', (sm.dsr * 100).toFixed(1) + '%', sm.dsr >= 0.95 ? 'kpi-pos' : '', 'Multiple-testing adjusted')}
+          ${kpi('Boot Sharpe 95% CI', `[${sm.boot_sh_ci[0]}, ${sm.boot_sh_ci[1]}]`, sm.boot_p_zero < 0.05 ? 'kpi-pos' : 'kpi-neg', `P(SR≤0) = ${(sm.boot_p_zero * 100).toFixed(2)}%`)}
+          ${kpi('vs Random Portfolios', sm.null_pct_rank.toFixed(1) + 'th pct', sm.null_p_val < 0.05 ? 'kpi-pos' : '', `Null p = ${sm.null_p_val.toFixed(3)}`)}
+        `;
+        plotInto('fig-rob_bootstrap', res.fig_bootstrap);
+        plotInto('fig-rob_null', res.fig_null);
+      } catch (e) {
+        bEl.innerHTML = `<div style="color:var(--warn);padding:18px;font-size:12px">✗ Robustness error: ${e.message}</div>`;
+      }
+    }
+
+    async function reloadMC() {
+      const h = document.getElementById('mc-horizon').value;
+      const p = document.getElementById('mc-paths').value;
+      const eng = document.getElementById('mc-engine')?.value || 'gaussian';
+      const qs = `?horizon=${h}&paths=${p}&engine=${eng}`;
+      delete S.figures['monte_carlo' + qs];
+      await loadFig('monte_carlo', qs);
+    }
+
+    // ── N+1 Screener Tool ─────────────────────────────────────────
+    function renderN1Tool(ct) {
+      const uniOpts = (S.n1Universes && S.n1Universes.length)
+        ? S.n1Universes.map(u => `<option value="${u.value}">${u.label}</option>`).join('')
+        : `<option value="ticks_top">ticks.py — Top Liquid All Sectors</option><option value="sp500">S&P 500 Constituents</option>`;
+      ct.innerHTML = `
+        <div class="section-divider" style="margin-top:0;padding-top:0;border-top:none">
+          <span class="section-title">(N+1) Asset Addition Screener</span>
+        </div>
+        <div class="info-box">
+          Screens candidate assets from <code>ticks.py</code> (multi-sector) or <code>S&amp;P 500</code> as the <strong>(N+1)th addition</strong> to your active portfolio (<code>${S.data?.meta?.weight_label || ''}</code>).
+          Scales existing weights by <code>(1 − w_new)</code>, assigns <code>w_new</code> to each candidate, and evaluates <strong>apples-to-apples</strong> on the exact same lookback dates.
+        </div>
+        <div class="mc-controls">
+          <div><div class="lbl">Candidate Universe</div>
+            <select id="sug-universe" style="width:265px">${uniOpts}</select></div>
+          <div><div class="lbl">New Weight (%)</div>
+            <input id="sug-weight" type="number" value="10" min="1" max="30" step="1" class="inp-sm" style="width:95px;background:#fff"></div>
+          <div><div class="lbl">Lookback</div>
+            <select id="sug-lookback" style="width:120px">
+              <option value="1">1 Year</option><option value="3" selected>3 Years</option>
+              <option value="5">5 Years</option><option value="10">10 Years</option><option value="0">Full History</option>
+            </select></div>
+          <div><div class="lbl">Primary Ranking</div>
+            <select id="sug-ranking" style="width:255px">
+              <option value="ir">↑ Max Information Ratio (rf-free)</option>
+              <option value="sharpe">↑ Max Sharpe Ratio</option>
+              <option value="vol">↓ Min Portfolio Volatility</option>
+              <option value="diversify">↓ Min Correlation w/ Portfolio</option>
+            </select></div>
+          <button class="btn btn-run" style="width:auto;padding:9px 22px" onclick="scanSP500()">🔍 Scan Universe</button>
+        </div>
+        <div id="sug-results" style="text-align:center;color:var(--muted);padding:44px 0;font-size:12.5px">
+          Select universe &amp; preference above, then click <strong>Scan Universe</strong>
+        </div>`;
+    }
+
+    async function scanSP500() {
+      const res = document.getElementById('sug-results');
+      if (!S.data) { showToast('Run a backtest first', 'error'); return; }
+      const uniSel = document.getElementById('sug-universe');
+      const uniVal = uniSel ? uniSel.value : 'ticks_top';
+      const uniText = uniSel ? uniSel.options[uniSel.selectedIndex].text : uniVal;
+      res.innerHTML = `<div class="skeleton" style="height:260px">Scanning ${uniText} (15–45s)...</div>`;
+      try {
+        const r = await apiFetch('/api/scan_sp500', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            universe: uniVal,
+            weight: parseFloat(document.getElementById('sug-weight').value) || 10,
+            ranking: document.getElementById('sug-ranking').value,
+            lookback_years: parseInt(document.getElementById('sug-lookback').value, 10)
+          })
+        });
+        const d = await r.json();
+        if (d.error) { res.innerHTML = `<div style="color:var(--warn);padding:16px">Error: ${d.error}</div>`; return; }
+        if (d.status === 'empty') { res.innerHTML = '<div style="padding:30px;color:var(--muted)">No valid candidates found — try another universe or window.</div>'; return; }
+        if (d.table) {
+          res.innerHTML = `<div class="diag-bar" style="text-align:left">
+            <div class="diag-pill">Baseline (${d.start_date}→today): Vol <strong>${(d.base_vol * 100).toFixed(2)}%</strong> · Ret <strong>${(d.base_ret * 100).toFixed(2)}%</strong> · Sharpe <strong>${d.base_sharpe.toFixed(2)}</strong> · IR <strong>${(d.base_ir || 0).toFixed(2)}</strong></div>
+            <div class="diag-pill">${uniText} · <strong>${d.n_evaluated}</strong> evaluated${d.elapsed_s ? ' · ' + d.elapsed_s + 's' : ''}</div>
+          </div><div id="sug-chart" class="chart-full" style="min-height:380px"></div>`;
+          plotInto('sug-chart', d.table);
+          showToast(`Screened ${d.n_evaluated} candidates`, 'success');
+        }
+      } catch (e) { res.innerHTML = `<div style="color:var(--warn);padding:16px">Error: ${e.message}</div>`; }
+    }
+
+    // ── Compare Portfolio A vs Portfolio B ────────────────────────
+    function renderCompareTab(ct) {
+      const m = S.data.meta;
+      const bw = S.data.weights.backtest || [];
+      const tks = m.tickers || [];
+      const portAList = tks.map((t, i) => `<span class="diag-pill"><strong>${t}</strong> ${(bw[i] * 100).toFixed(1)}%</span>`).join('');
+      const saved = allSaved();
+      const presetOpts = '<option value="">— load saved preset into B —</option>' +
+        Object.keys(saved).map(n => `<option value="${n}">${n}</option>`).join('');
+
+      ct.innerHTML = `
+        <div class="section-divider" style="margin-top:0;padding-top:0;border-top:none">
+          <span class="section-title">Head-to-Head Portfolio Comparison (A vs B)</span>
+        </div>
+        <div class="info-box">
+          Compare your active <strong>Portfolio A</strong> (<code>${m.weight_label}</code>, currency <code>${m.currency}</code>)
+          against any custom <strong>Portfolio B</strong> with arbitrary tickers &amp; weights, automatically aligned on exact common trading dates.
+        </div>
+        <div style="display:grid;grid-template-columns:minmax(220px, 0.65fr) minmax(420px, 1.75fr);gap:16px;align-items:start;margin-bottom:16px">
+          <div class="panel" style="min-height:auto;overflow:hidden;background:var(--bg)">
+            <div class="lbl" style="color:var(--accent);margin-bottom:8px">Portfolio A — Active (${m.weight_label})</div>
+            <div class="diag-bar" style="margin-bottom:8px">${portAList}</div>
+            <div style="font-family:var(--font-mono);font-size:11px;color:var(--muted)">
+              Currency: <strong style="color:var(--ink)">${m.currency}</strong> ·
+              Benchmark: <strong style="color:var(--ink)">${m.benchmark}</strong> ·
+              ${m.n_days.toLocaleString()}d
+            </div>
+          </div>
+          <div class="panel" style="min-height:auto;min-width:0">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px;flex-wrap:wrap">
+              <div class="lbl" style="color:var(--green);margin:0">Portfolio B — Custom Comparison</div>
+              <input id="cmp-b-label" value="Custom B" placeholder="Label B..." style="width:150px;padding:5px 9px;font-size:11.5px">
+            </div>
+            <div class="sl-bar" style="margin-top:0;margin-bottom:10px">
+              <select id="cmp-b-preset" onchange="loadPresetIntoB()" style="font-size:11.5px;padding:6px 8px">${presetOpts}</select>
+              <button class="btn-ghost" onclick="equalWeightB()" style="padding:6px 10px">Equal Weight</button>
+            </div>
+            <div class="ticker-header">
+              <span class="lbl">Ticker</span>
+              <span class="lbl lbl-ccy">CCY</span>
+              <span class="lbl lbl-w">Weight %</span>
+            </div>
+            <div class="ticker-grid" id="cmp-b-grid" style="max-height:220px"></div>
+            <div style="display:flex;gap:8px;margin-top:10px;align-items:center;flex-wrap:wrap">
+              <button class="btn-ghost" onclick="addTickerB()">+ Add Ticker</button>
+              <span class="weight-counter" id="cmp-b-wc">Σ 0.0%</span>
+              <button class="btn btn-run" style="width:auto;margin-left:auto;padding:8px 20px" onclick="runCompareAB()">⚔ Compare A vs B</button>
+            </div>
+          </div>
+        </div>
+        <div id="cmp-results">
+          <div style="text-align:center;color:var(--muted);padding:38px 0;font-size:12.5px">
+            Configure Portfolio B tickers &amp; weights above, then click <strong>Compare A vs B</strong>
+          </div>
+        </div>`;
+
+      const defaultsB = S.compareB || [
+        { t: 'SPY', c: 'USD', w: 60 },
+        { t: 'TLT', c: 'USD', w: 30 },
+        { t: 'GLD', c: 'USD', w: 10 },
+      ];
+      defaultsB.forEach(r => addTickerB(r.t, r.c, r.w));
+    }
+
+    function addTickerB(ticker = '', ccy = 'USD', weight = '') {
+      const g = document.getElementById('cmp-b-grid');
+      if (!g || g.children.length >= 20) return;
+      const idx = g.children.length;
+      const row = document.createElement('div');
+      row.className = 'ticker-row';
+      row.innerHTML = `<span class="num">${idx + 1}</span>
+        <input class="inp-sm cmp-t" value="${ticker}" placeholder="TICKER">
+        <select class="t-ccy cmp-c"><option value="USD" ${ccy === 'USD' ? 'selected' : ''}>USD</option>
+        <option value="EUR" ${ccy === 'EUR' ? 'selected' : ''}>EUR</option></select>
+        <input class="inp-sm w-inp cmp-w" type="number" placeholder="%" min="0" max="100" step="0.5" value="${weight}" oninput="updateWCB()">
+        <button class="del-btn" onclick="this.closest('.ticker-row').remove();updateWCB()">×</button>`;
+      g.appendChild(row); updateWCB();
+    }
+
+    function updateWCB() {
+      const ws = [...document.querySelectorAll('.cmp-w')].map(i => parseFloat(i.value) || 0);
+      const sum = ws.reduce((a, b) => a + b, 0);
+      const el = document.getElementById('cmp-b-wc');
+      if (!el) return;
+      el.textContent = `Σ ${sum.toFixed(1)}%`;
+      el.style.color = Math.abs(sum - 100) < 0.5 ? 'var(--green)' : sum > 0 ? 'var(--orange)' : 'var(--muted)';
+    }
+
+    function equalWeightB() {
+      const inputs = [...document.querySelectorAll('.cmp-w')];
+      if (!inputs.length) return;
+      const eq = (100 / inputs.length).toFixed(2);
+      inputs.forEach(i => { i.value = eq; });
+      updateWCB();
+    }
+
+    function loadPresetIntoB() {
+      const name = document.getElementById('cmp-b-preset')?.value;
+      if (!name) return;
+      const p = allSaved()[name];
+      if (!p) return;
+      const g = document.getElementById('cmp-b-grid');
+      g.innerHTML = '';
+      const n = p.tickers.filter(Boolean).length || 1;
+      p.tickers.forEach((t, i) => {
+        if (!t) return;
+        const w = (p.weights && p.weights[i]) ? p.weights[i] : (100 / n).toFixed(1);
+        addTickerB(t, (p.currencies && p.currencies[i]) || 'USD', w);
+      });
+      const lbl = document.getElementById('cmp-b-label');
+      if (lbl) lbl.value = name;
+    }
+
+    async function runCompareAB() {
+      const resEl = document.getElementById('cmp-results');
+      const tickers = [...document.querySelectorAll('.cmp-t')].map(i => i.value.trim().toUpperCase());
+      const currencies = [...document.querySelectorAll('.cmp-c')].map(s => s.value);
+      const weights = [...document.querySelectorAll('.cmp-w')].map(i => parseFloat(i.value) || 0);
+      const label = document.getElementById('cmp-b-label')?.value || 'Portfolio B';
+
+      S.compareB = tickers.map((t, i) => ({ t, c: currencies[i], w: weights[i] })).filter(x => x.t);
+      resEl.innerHTML = '<div class="skeleton">Downloading Portfolio B &amp; running head-to-head comparison...</div>';
+      try {
+        const r = await apiFetch('/api/compare_portfolios', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tickers, currencies, weights, label })
+        });
+        const d = await r.json();
+        if (!r.ok || d.status === 'error') throw new Error(d.message || d.error || `HTTP ${r.status}`);
+
+        const winner = d.qs_a >= d.qs_b ? `Portfolio A (${d.label_a})` : `Portfolio B (${d.label_b})`;
+        const wCol = d.qs_a >= d.qs_b ? 'var(--accent)' : 'var(--green)';
+        resEl.innerHTML = `
+          <div class="verdict-banner" style="border-left:4px solid ${wCol}">
+            <div>
+              <div class="lbl" style="margin-bottom:2px">Quant Score Comparison · Common Period ${d.date_start} → ${d.date_end} (${d.common_days.toLocaleString()}d)</div>
+              <div style="font-weight:800;font-size:15px">
+                <span style="color:var(--accent)">A: ${d.qs_a}</span>
+                <span style="color:var(--muted);margin:0 8px">vs</span>
+                <span style="color:var(--green)">B: ${d.qs_b}</span>
+                <span style="color:var(--muted);font-size:12px;margin-left:12px">Higher Score: <strong style="color:${wCol}">${winner}</strong></span>
+              </div>
+            </div>
+            <div style="font-family:var(--font-mono);font-size:11.5px;color:var(--muted)">
+              Daily Corr(A, B): <strong style="color:var(--accent)">${d.corr_ab}</strong>
+            </div>
+          </div>
+          <div class="chart-full" id="fig-cmp_equity"></div>
+          <div class="chart-full" id="fig-cmp_table" style="min-height:420px"></div>
+          <div class="chart-full" id="fig-cmp_dd_ann" style="min-height:430px"></div>
+          <div class="chart-full" id="fig-cmp_alloc" style="min-height:360px"></div>`;
+        plotInto('fig-cmp_equity', d.fig_equity);
+        plotInto('fig-cmp_table', d.fig_table);
+        plotInto('fig-cmp_dd_ann', d.fig_dd_ann);
+        plotInto('fig-cmp_alloc', d.fig_alloc);
+        showToast(`Comparison ready (${d.common_days.toLocaleString()} common days)`, 'success');
+      } catch (e) {
+        resEl.innerHTML = `<div style="color:var(--warn);padding:18px;font-size:12px">✗ Compare error: ${e.message}</div>`;
+      }
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────
+    function setStatus(state, text) {
+      document.getElementById('status-dot').className = 'status-dot' + (state ? ' ' + state : '');
+      document.getElementById('status-text').textContent = text;
+      const p = document.getElementById('status-pill');
+      p.style.borderColor = state === 'done' ? 'var(--green)' : state === 'error' ? 'var(--warn)' : state === 'running' ? 'var(--accent)' : 'var(--border)';
+      p.style.color = state === 'done' ? 'var(--green)' : state === 'error' ? 'var(--warn)' : state === 'running' ? 'var(--accent)' : 'var(--muted)';
+    }
+    function showProgress(show) {
+      document.getElementById('progress-track').style.display = show ? 'block' : 'none';
+      if (show) {
+        const f = document.getElementById('progress-fill'); f.style.width = '25%';
+        setTimeout(() => f.style.width = '60%', 1200);
+        setTimeout(() => f.style.width = '88%', 4000);
+      }
+    }
+    function exportCSV() {
+      if (!S.data) { showToast('Run a backtest first', 'error'); return; }
+      window.location.href = '/api/export_excel?sid=' + encodeURIComponent(SID);
+      showToast('Downloading Excel workbook (.xlsx)...', 'info');
+    }
+
+    function syncEstModeBadge() {
+      const val = document.getElementById('inp-estmode')?.value || 'oos3';
+      const box = document.getElementById('est-mode-box');
+      const pill = document.getElementById('est-mode-pill');
+      const nav = document.getElementById('nav-mode-badge');
+      const isIn = (val === 'insample');
+      if (box) box.classList.toggle('is-insample', isIn);
+      if (nav) {
+        nav.classList.toggle('is-insample', isIn);
+        nav.textContent = val === 'oos5' ? 'OOS 5Y WALK-FORWARD' : isIn ? '⚠ IN-SAMPLE STATIC' : 'OOS 3Y WALK-FORWARD';
+      }
+      if (pill) pill.textContent = isIn ? 'IN-SAMPLE (LOOK-AHEAD)' : 'ZERO LOOK-AHEAD';
+    }
+
+    init();
+    syncEstModeBadge();
+  </script>
+</body>
+
+</html>
