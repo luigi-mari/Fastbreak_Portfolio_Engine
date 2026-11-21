@@ -1,8 +1,8 @@
-# FastbreaK — Quantitative Portfolio Analytics Engine
+# FastbreaK: Quantitative Portfolio  Engine
 
 **FastbreaK** is an interactive, institutional-style quantitative portfolio backtesting and risk analytics web application built with **Python (Flask, NumPy, SciPy, scikit-learn, statsmodels, Plotly)**.
 
-> **Live Demo:** *Add your Render URL here once deployed (e.g. `https://fastbreak-quant.onrender.com`)*
+> **Live Demo:** [fastbreak-quant.onrender.com](https://fastbreak-quant.onrender.com)
 
 ---
 
@@ -70,14 +70,6 @@ python server.py
 ```
 
 Open `http://127.0.0.1:5000` in your browser.
-
----
-
-## Deploy on Render
-
-1. Push this repository to GitHub.
-2. Go to [render.com](https://render.com) → **New +** → **Blueprint** and connect your repository.
-3. Render automatically detects `render.yaml`, installs dependencies, and serves the app via `gunicorn`.
 
 ---
 
