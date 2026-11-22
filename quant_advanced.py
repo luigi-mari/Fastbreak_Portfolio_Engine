@@ -24,6 +24,7 @@ Implements:
      - Random Long-Only Portfolio Null Test & Cumulative t-stat Stability
 """
 
+import gc
 import numpy as np
 import pandas as pd
 from scipy import optimize, stats
@@ -1007,32 +1008,46 @@ def fig_monte_carlo_v2(p_returns, returns_df, backtest_weights, days,
         except np.linalg.LinAlgError:
             evals, evecs = np.linalg.eigh(scatter_d)
             L = evecs @ np.diag(np.sqrt(np.maximum(evals, 1e-12)))
-        z = rng.standard_normal(size=(n_paths, horizon_days, n_assets))
-        chi2 = rng.chisquare(df=nu_sim, size=(n_paths, horizon_days, 1))
-        t_draws = (z @ L.T) / np.sqrt(chi2 / nu_sim)
-        asset_rets = np.clip(t_draws + mu_d, -0.95, 5.0)
-        port_rets = asset_rets @ weights
+        # Chunked Student-t simulation (identical math, low peak RAM for cloud hosting)
+        port_rets = np.empty((n_paths, horizon_days), dtype=np.float32)
+        chunk = 250
+        for s0 in range(0, n_paths, chunk):
+            s1 = min(s0 + chunk, n_paths)
+            m = s1 - s0
+            z = rng.standard_normal(size=(m, horizon_days, n_assets)).astype(np.float32)
+            chi2 = rng.chisquare(df=nu_sim, size=(m, horizon_days, 1)).astype(np.float32)
+            t_draws = (z @ L.T.astype(np.float32)) / np.sqrt(chi2 / np.float32(nu_sim))
+            asset_rets = np.clip(t_draws + mu_d.astype(np.float32), -0.95, 5.0)
+            port_rets[s0:s1] = asset_rets @ weights.astype(np.float32)
         engine_label = f"Multivariate Student-t (ν={nu_sim:.0f}, Elliptical MLE)"
 
     else:
-        # Parametric Correlated Gaussian (Cholesky)
-        mu_daily = returns_df.mean().values
-        std_daily = returns_df.std().values
+        # Parametric Correlated Gaussian (Cholesky) — chunked for low peak RAM
+        mu_daily = returns_df.mean().values.astype(np.float32)
+        std_daily = returns_df.std().values.astype(np.float32)
         corr = returns_df.corr().values
         corr = np.nan_to_num(corr, nan=0.0)
         np.fill_diagonal(corr, 1.0)
         corr_pd = _clean_psd(corr, eps=1e-8)
         try:
-            L = np.linalg.cholesky(corr_pd)
+            L = np.linalg.cholesky(corr_pd).astype(np.float32)
         except np.linalg.LinAlgError:
-            L = np.eye(n_assets)
-        z = rng.standard_normal(size=(n_paths, horizon_days, n_assets))
-        z_corr = np.einsum("pti,ij->ptj", z, L.T)
-        asset_rets = np.clip(z_corr * std_daily + mu_daily, -0.95, 5.0)
-        port_rets = asset_rets @ weights
+            L = np.eye(n_assets, dtype=np.float32)
+        w32 = weights.astype(np.float32)
+        port_rets = np.empty((n_paths, horizon_days), dtype=np.float32)
+        chunk = 250
+        for s0 in range(0, n_paths, chunk):
+            s1 = min(s0 + chunk, n_paths)
+            m = s1 - s0
+            z = rng.standard_normal(size=(m, horizon_days, n_assets)).astype(np.float32)
+            z_corr = np.einsum("pti,ij->ptj", z, L.T)
+            asset_rets = np.clip(z_corr * std_daily + mu_daily, -0.95, 5.0)
+            port_rets[s0:s1] = asset_rets @ w32
         engine_label = "Parametric Gaussian (Cholesky)"
 
-    cum_growth = np.cumprod(1.0 + port_rets, axis=1)
+    cum_growth = np.cumprod(1.0 + port_rets.astype(np.float64), axis=1)
+    del port_rets
+    gc.collect()
 
     p5  = np.percentile(cum_growth, 5,  axis=0)
     p10 = np.percentile(cum_growth, 10, axis=0)
@@ -1231,36 +1246,43 @@ def compute_robustness_analysis(p_ret, bench_ret, returns_df, days=252, rf=0.04,
     else:
         mintrl_years = float("inf")
 
-    # 4. Circular Block Bootstrap (2,000 resamples, block=21d)
+    # 4. Circular Block Bootstrap (2,000 resamples, block=21d) — chunked for low RAM (<20 MB)
     rng = np.random.default_rng(42)
     block = min(21, max(5, T // 12))
     n_blocks = int(np.ceil(T / block))
-    starts = rng.integers(0, T, size=(n_boot, n_blocks))
-    offsets = np.arange(block)[None, None, :]
-    idx = (starts[:, :, None] + offsets) % T
-    idx = idx.reshape(n_boot, n_blocks * block)[:, :T]
-    boot_r = r[idx]
-    boot_ex = boot_r - rf_d
-
-    boot_mean = boot_ex.mean(axis=1)
-    boot_std = np.maximum(boot_ex.std(axis=1, ddof=1), 1e-12)
-    boot_sharpe = (boot_mean / boot_std) * np.sqrt(days)
-    # Use log1p for fast numerical stability in CAGR
-    boot_cagr = np.expm1(np.mean(np.log1p(np.clip(boot_r, -0.99, None)), axis=1) * days)
+    offsets = np.arange(block, dtype=np.int32)[None, None, :]
+    boot_sharpe = np.empty(n_boot, dtype=np.float64)
+    boot_cagr = np.empty(n_boot, dtype=np.float64)
+    chunk = 200
+    for s0 in range(0, n_boot, chunk):
+        s1 = min(s0 + chunk, n_boot)
+        m = s1 - s0
+        starts = rng.integers(0, T, size=(m, n_blocks), dtype=np.int32)
+        idx = ((starts[:, :, None] + offsets) % T).reshape(m, n_blocks * block)[:, :T]
+        br_chunk = r[idx]
+        bex = br_chunk - rf_d
+        bm = bex.mean(axis=1)
+        bs = np.maximum(bex.std(axis=1, ddof=1), 1e-12)
+        boot_sharpe[s0:s1] = (bm / bs) * np.sqrt(days)
+        boot_cagr[s0:s1] = np.expm1(np.mean(np.log1p(np.clip(br_chunk, -0.99, None)), axis=1) * days)
 
     sh_ci = (float(np.percentile(boot_sharpe, 2.5)), float(np.percentile(boot_sharpe, 97.5)))
     cagr_ci = (float(np.percentile(boot_cagr, 2.5)), float(np.percentile(boot_cagr, 97.5)))
     boot_p_zero = float(np.mean(boot_sharpe <= 0.0))
     boot_p_bench = float(np.mean(boot_sharpe <= sr_bench_ann))
 
-    # 5. Random Long-Only Portfolio Null Test (2,000 Dirichlet random allocations on same assets)
-    X_all = returns_df.reindex(common).dropna().values.astype(float)
+    # 5. Random Long-Only Portfolio Null Test (2,000 Dirichlet random allocations) — chunked for low RAM
+    X_all = returns_df.reindex(common).dropna().values.astype(np.float64)
     n_assets = X_all.shape[1]
     n_rand = 2000
-    rand_w = rng.dirichlet(np.ones(n_assets), size=n_rand)  # (n_rand, N)
-    rand_rets = rand_w @ X_all.T                            # (n_rand, T)
-    rand_ex = rand_rets - rf_d
-    rand_sharpe = (rand_ex.mean(axis=1) / np.maximum(rand_ex.std(axis=1, ddof=1), 1e-12)) * np.sqrt(days)
+    rand_sharpe = np.empty(n_rand, dtype=np.float64)
+    X_T = X_all.T
+    for s0 in range(0, n_rand, chunk):
+        s1 = min(s0 + chunk, n_rand)
+        rw = rng.dirichlet(np.ones(n_assets), size=(s1 - s0))
+        rex = (rw @ X_T) - rf_d
+        rand_sharpe[s0:s1] = (rex.mean(axis=1) / np.maximum(rex.std(axis=1, ddof=1), 1e-12)) * np.sqrt(days)
+    gc.collect()
     null_p_val = float(np.mean(rand_sharpe >= sr_ann))
     null_pct_rank = float(np.mean(rand_sharpe < sr_ann) * 100.0)
 

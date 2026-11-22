@@ -54,18 +54,69 @@ RF_RATE  = 0.04   # Risk-free rate for Sharpe/Sortino
 # CORE QUANT FUNCTIONS
 # ─────────────────────────────────────────────────────────────────
 
+def _download_single_yf(sym, start_date, end_date):
+    """Single-symbol yfinance retry via Ticker.history."""
+    import time as _t
+    for wait in (0.0, 1.0):
+        if wait:
+            _t.sleep(wait)
+        try:
+            h = yf.Ticker(sym).history(start=start_date, end=end_date, auto_adjust=True)
+            if h is None or h.empty or "Close" not in h.columns:
+                continue
+            s = pd.to_numeric(h["Close"], errors="coerce").dropna()
+            if s.empty:
+                continue
+            idx = pd.DatetimeIndex(s.index)
+            if idx.tz is not None:
+                idx = idx.tz_localize(None)
+            s.index = idx.normalize()
+            return s.rename(sym)
+        except Exception:
+            continue
+    return None
+
+
 def download_data(tickers, benchmark, start_date, end_date):
-    all_symbols = list(set(tickers + [benchmark]))
-    data = yf.download(all_symbols, start=start_date, end=end_date,
-                       auto_adjust=True, progress=False)["Close"]
-    if isinstance(data, pd.Series):
-        data = data.to_frame()
+    all_symbols = list(dict.fromkeys(tickers + [benchmark]))
+    data = pd.DataFrame()
+    try:
+        dl = yf.download(all_symbols, start=start_date, end=end_date,
+                         auto_adjust=True, progress=False, threads=False)
+        if dl is not None and not dl.empty:
+            close = dl["Close"] if "Close" in dl else dl
+            if isinstance(close, pd.Series):
+                close = close.to_frame(name=all_symbols[0])
+            idx = pd.DatetimeIndex(close.index)
+            if idx.tz is not None:
+                idx = idx.tz_localize(None)
+            close.index = idx.normalize()
+            data = close.copy()
+    except Exception:
+        data = pd.DataFrame()
+
+    # Retry any missing or all-NaN symbols individually via yf.Ticker
+    missing = [s for s in all_symbols if (s not in data.columns) or data[s].dropna().empty]
+    for sym in missing:
+        ser = _download_single_yf(sym, start_date, end_date)
+        if ser is not None and not ser.empty:
+            data = pd.concat([data, ser], axis=1) if not data.empty else ser.to_frame(name=sym)
+
+    # Drop completely empty columns so 1 failed ticker never wipes out the whole portfolio
+    if not data.empty:
+        data = data.loc[:, ~data.columns.duplicated()]
+        data = data.dropna(axis=1, how="all")
+
+    if data.empty or benchmark not in data.columns:
+        raise ValueError(f"Market data unavailable for benchmark '{benchmark}' or requested tickers (Yahoo Finance rate-limit — retry in a few seconds).")
+
     # Record first valid date per ticker BEFORE dropna (raw history length)
     ticker_start = {}
     for t in tickers:
         if t in data.columns:
             fv = data[t].first_valid_index()
             ticker_start[t] = fv
+
     returns = data.ffill().pct_change().dropna()
     if not isinstance(returns.index, pd.DatetimeIndex):
         returns.index = pd.DatetimeIndex(returns.index)
