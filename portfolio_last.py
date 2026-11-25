@@ -1020,21 +1020,16 @@ def fig_risk_attribution(returns, weights, days=252):
     return fig
 
 
-def fig_performance_attribution(returns, weights, bench_ret, days=252):
-    """Performance Attribution (Brinson-style simplified).
+def fig_performance_attribution(returns, weights, bench_ret, days=252, weights_hist=None):
+    """Performance Attribution (ex-post active return contribution per asset).
 
-    For each asset: contribution to portfolio return = w_i * (r_i_ann - r_bench_ann)
-    Shows active return contribution (alpha source) per asset.
+    When `weights_hist` (daily realized weights DataFrame) is provided, computes
+    exact time-varying realized active contribution:
+        contrib_i = mean_t[ w_{i,t} * (r_{i,t} - r_{bench,t}) ] * days
+    Otherwise falls back to static weights * (r_i_ann - r_bench_ann).
     """
     tickers = list(returns.columns)
     n = len(tickers)
-    w = np.array(weights)
-    if len(w) > n:
-        w = w[:n]
-    elif len(w) < n:
-        w = np.append(w, np.zeros(n - len(w)))
-    if w.sum() > 0:
-        w = w / w.sum()
     bench_ann = float((1 + bench_ret).prod() ** (days / len(bench_ret)) - 1)
 
     asset_ann = []
@@ -1042,17 +1037,36 @@ def fig_performance_attribution(returns, weights, bench_ret, days=252):
         r = returns[t].dropna()
         ann = float((1 + r).prod() ** (days / len(r)) - 1) if len(r) > 0 else 0
         asset_ann.append(ann)
-
     asset_ann = np.array(asset_ann)
-    active_ret = asset_ann - bench_ann               # excess return per asset
-    contribution = w * active_ret * 100              # weighted active return %
-    total_active = float(np.dot(w, active_ret)) * 100
+
+    if weights_hist is not None and not weights_hist.empty:
+        common = returns.index.intersection(weights_hist.index).intersection(bench_ret.index)
+        ret_c = returns.loc[common, tickers]
+        wh_c = weights_hist.loc[common, tickers]
+        bm_c = bench_ret.loc[common]
+        # Exact realized daily active contribution per asset, annualised
+        daily_active_contrib = wh_c.values * (ret_c.values - bm_c.values[:, None])
+        contribution = daily_active_contrib.mean(axis=0) * days * 100.0
+        total_active = float(contribution.sum())
+        mode_tag = "Realized Dynamic Holdings (Ex-Post)"
+    else:
+        w = np.array(weights, dtype=float)
+        if len(w) > n:
+            w = w[:n]
+        elif len(w) < n:
+            w = np.append(w, np.zeros(n - len(w)))
+        if w.sum() > 0:
+            w = w / w.sum()
+        active_ret = asset_ann - bench_ann
+        contribution = w * active_ret * 100.0
+        total_active = float(np.dot(w, active_ret)) * 100.0
+        mode_tag = "Static Weights"
 
     colors = [C_GREEN if v >= 0 else C_RED for v in contribution]
 
     fig = make_subplots(
         rows=1, cols=2,
-        subplot_titles=("Weighted Active Return Contribution (%)", "Asset Ann. Return vs Benchmark"),
+        subplot_titles=(f"Active Return Contribution (%) · {mode_tag}", "Asset Ann. Return vs Benchmark"),
         column_widths=[0.5, 0.5],
     )
     fig.add_trace(go.Bar(
@@ -1080,7 +1094,7 @@ def fig_performance_attribution(returns, weights, bench_ret, days=252):
 
     fig.update_layout(
         template=TEMPLATE, height=480,
-        title=f"Performance Attribution  ·  Total Active Return: {total_active:+.2f}%  ·  Benchmark: {bench_ann*100:.2f}%",
+        title=f"Performance Attribution ({mode_tag})  ·  Total Active Return: {total_active:+.2f}%  ·  Benchmark: {bench_ann*100:.2f}%",
         paper_bgcolor=C_CARD, plot_bgcolor=C_CARD,
         showlegend=False,
         margin=dict(t=80, b=60),

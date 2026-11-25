@@ -522,9 +522,21 @@ def api_backtest():
         bym = bench_ret.index >= bench_ret.index[-1].replace(month=1,day=1)
         byr = float((1+bench_ret[bym]).prod()-1) if bym.any() else 0
 
+        # Ex-ante risk window: Current Regime (latest 3Y/5Y rolling window) in OOS mode, Full History in In-Sample
+        if is_oos:
+            win_days = min(int(win_y * days), max(120, len(returns_full) // 3))
+            if len(returns_full) <= win_days + 30:
+                win_days = max(60, len(returns_full) // 2)
+            risk_ret = returns_full.iloc[max(0, len(returns_full) - win_days):]
+            risk_window_label = f"Current {win_y}Y Regime ({weights_window_range})"
+        else:
+            risk_ret = returns
+            risk_window_label = f"Full History ({weights_window_range})"
+
         # Cache everything per user session
         _set_state(dict(returns=returns, bench_ret=bench_ret, p_ret=pr,
             returns_full=returns_full, bench_full=bench_full,
+            risk_ret=risk_ret, risk_window_label=risk_window_label,
             pr_mko=pr_mko, pr_gmv=pr_gmv, pr_hrp=pr_hrp,
             pr_lw=pr_lw, pr_mp=pr_mp, pr_ell=pr_ell, pr_cust=pr_cust,
             opt_w=opt_w, cw=cw, bw=bw, wh=wh,
@@ -706,10 +718,23 @@ def _gen(name, s):
         return fig
     if name=='individual_pnl': return P.fig_individual_pnl(ret, cs=cs)
     if name=='rolling_volatility': return P.fig_rolling_volatility(pr, br, d)
-    if name=='risk_attribution': return Q.fig_risk_attribution_full(ret, bw, d)
-    if name=='pca_risk_directions': return Q.fig_pca_risk_directions(ret, bw, d)
-    if name=='pca_loadings': return Q.fig_pca_loadings(ret, bw, d)
-    if name=='performance_attribution': return P.fig_performance_attribution(ret, bw, br, d)
+    if name=='risk_attribution':
+        fig = Q.fig_risk_attribution_full(s['risk_ret'], bw, d)
+        fig.update_layout(title=dict(
+            text=f"{fig.layout.title.text}  ·  {s['risk_window_label']}",
+            y=0.98, yanchor="top",
+        ))
+        return fig
+    if name=='pca_risk_directions':
+        fig = Q.fig_pca_risk_directions(s['risk_ret'], bw, d)
+        fig.update_layout(title=f"{fig.layout.title.text}  ·  {s['risk_window_label']}")
+        return fig
+    if name=='pca_loadings':
+        fig = Q.fig_pca_loadings(s['risk_ret'], bw, d)
+        fig.update_layout(title=f"{fig.layout.title.text}  ·  {s['risk_window_label']}")
+        return fig
+    if name=='performance_attribution':
+        return P.fig_performance_attribution(ret, bw, br, d, weights_hist=s.get('wh'))
     if name=='var_chart': return P.fig_var_chart(pr, br, d)
     if name=='monte_carlo':
         h = int(request.args.get('horizon', 4))
